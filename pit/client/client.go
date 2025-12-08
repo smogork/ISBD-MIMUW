@@ -137,7 +137,7 @@ func parameterValueToString(obj interface{}, key string) string {
 		}
 
 		s := fmt.Sprintf("%v", obj)
-		return s[1 : len(s)-1]
+		return s
 	}
 	var param, ok = obj.(MappedNullable)
 	if !ok {
@@ -148,7 +148,7 @@ func parameterValueToString(obj interface{}, key string) string {
 		return ""
 	}
 	s := fmt.Sprintf("%v", dataMap[key])
-	return s[1 : len(s)-1]
+	return s
 }
 
 // parameterAddToHeaderOrQuery adds the provided object to the request header or url query
@@ -438,7 +438,10 @@ func (c *APIClient) decode(v interface{}, b []byte, contentType string) (err err
 		return nil
 	}
 	if s, ok := v.(*string); ok {
-		*s = string(b)
+		// NOTE: decoding response that just contains a json string fails here - b contains json qutoes.
+		// this is a hack. if tests fail because first/last letters of identifiers are missing in requests, check this
+		*s = string(b[1 : len(b)-1])
+		// println("string decode", *s)
 		return nil
 	}
 	if f, ok := v.(*os.File); ok {

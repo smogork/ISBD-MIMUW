@@ -61,7 +61,7 @@ func createTable(t *testing.T, apiClient *apiclient.APIClient, ctx context.Conte
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 	}
-	return tableId[1 : len(tableId)-1], resp, err
+	return tableId, resp, err
 }
 
 func deleteTable(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, tableId string, mayFail bool) (*http.Response, error) {
@@ -95,7 +95,7 @@ func createTableWithCleanup(t *testing.T, apiClient *apiclient.APIClient, ctx co
 		}
 	})
 
-	return tableId[1 : len(tableId)-1]
+	return tableId
 }
 
 func TestTableCreation(t *testing.T) {
