@@ -268,5 +268,33 @@ func TestBasicQueries(t *testing.T) {
 	})
 
 	t.Run("TableCopyDeleteRecreate", func(t *testing.T) {
+		tableId, _, _ := createTable(t, dbClient, ctx, peopleSchema, false)
+
+		queryId, _, _ := copyData(t, dbClient, ctx, tableId, filePathLong, false, csvColumnOrder)
+		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
+
+		// select data and check if row count matches
+		queryId, _, _ = selectData(t, dbClient, ctx, tableId)
+		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
+
+		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil)
+		require.Equal(t, *results[0].RowCount, int32(1000000))
+
+		resp, _ := deleteTable(t, dbClient, ctx, tableId, true)
+		require.Equal(t, http.StatusOK, resp.StatusCode, true)
+		t.Log(pit.FormatResponse(resp))
+
+		// create table again
+		tableId = createTableWithCleanup(t, dbClient, ctx, peopleSchema)
+
+		queryId, _, _ = copyData(t, dbClient, ctx, tableId, filePathLong, false, csvColumnOrder)
+		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
+
+		// select data and check if row count matches on the new table
+		queryId, _, _ = selectData(t, dbClient, ctx, tableId)
+		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
+
+		results, _, _ = getQueryResults(t, dbClient, ctx, queryId, nil, nil)
+		require.Equal(t, *results[0].RowCount, int32(1000000))
 	})
 }
