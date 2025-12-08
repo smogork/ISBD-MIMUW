@@ -61,14 +61,16 @@ func createTable(t *testing.T, apiClient *apiclient.APIClient, ctx context.Conte
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 	}
-	return tableId, resp, err
+	return tableId[1 : len(tableId)-1], resp, err
 }
 
-func deleteTable(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, tableId string) (*http.Response, error) {
+func deleteTable(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, tableId string, mayFail bool) (*http.Response, error) {
 	resp, err := apiClient.SchemaAPI.DeleteTable(ctx, tableId).Execute()
 	t.Log(pit.FormatResponse(resp))
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	if !mayFail {
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	}
 	return resp, err
 }
 
@@ -93,7 +95,7 @@ func createTableWithCleanup(t *testing.T, apiClient *apiclient.APIClient, ctx co
 		}
 	})
 
-	return tableId
+	return tableId[1 : len(tableId)-1]
 }
 
 func TestTableCreation(t *testing.T) {
@@ -171,7 +173,7 @@ func TestTableCreation(t *testing.T) {
 		tableId, _, _ := createTable(t, dbClient, ctx, peopleSchema, false)
 
 		// Delete the table - should succeed
-		_, _ = deleteTable(t, dbClient, ctx, tableId)
+		_, _ = deleteTable(t, dbClient, ctx, tableId, false)
 
 		// Try to delete the table again - should fail
 		resp, _ := dbClient.SchemaAPI.DeleteTable(ctx, tableId).Execute()
@@ -184,7 +186,7 @@ func TestTableCreation(t *testing.T) {
 		tableId, _, _ := createTable(t, dbClient, ctx, peopleSchema, false)
 
 		// Delete the table - should succeed
-		_, _ = deleteTable(t, dbClient, ctx, tableId)
+		_, _ = deleteTable(t, dbClient, ctx, tableId, false)
 
 		// Try to get details of deleted table - should fail
 		_, resp, _ := dbClient.SchemaAPI.GetTableById(ctx, tableId).Execute()
@@ -192,4 +194,29 @@ func TestTableCreation(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
 
+	t.Run("TableCreateDuplicateColumns", func(t *testing.T) {
+		var schema = apiclient.NewTableSchema("duplicated", []apiclient.Column{
+			apiclient.Column{Name: "test", Type: apiclient.INT64},
+			apiclient.Column{Name: "test2", Type: apiclient.INT64},
+			apiclient.Column{Name: "test2", Type: apiclient.INT64},
+		})
+
+		_, resp, _ := createTable(t, dbClient, ctx, schema, true)
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		t.Log(pit.FormatResponse(resp))
+	})
+
+	t.Run("TableCreateNoColumns", func(t *testing.T) {
+		var schema = apiclient.NewTableSchema("empty", []apiclient.Column{})
+
+		_, resp, _ := createTable(t, dbClient, ctx, schema, true)
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		t.Log(pit.FormatResponse(resp))
+	})
+
+	t.Run("TableDeleteNonExistent", func(t *testing.T) {
+		resp, _ := deleteTable(t, dbClient, ctx, "test", true)
+		require.Equal(t, http.StatusNotFound, resp.StatusCode, true)
+		t.Log(pit.FormatResponse(resp))
+	})
 }
