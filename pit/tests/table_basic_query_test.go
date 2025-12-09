@@ -90,17 +90,6 @@ func verifyPeopleCsv(t *testing.T, csv_path string, results apiclient.QueryResul
 	require.Equal(t, i, colLen, "csv len != min(rowLimit, column length) %d %d", i, colLen)
 }
 
-func getQueryErrors(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, queryId string) (*apiclient.MultipleProblemsError, *http.Response, error) {
-	results, resp, err := apiClient.ExecutionAPI.
-		GetQueryError(ctx, queryId).
-		Execute()
-
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-
-	return results, resp, err
-}
-
 func waitForQueryToFail(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, queryId string) (*apiclient.Query, *http.Response, error) {
 	for range 100 {
 		query, resp, err := apiClient.ExecutionAPI.GetQueryById(ctx, queryId).Execute()
@@ -111,7 +100,7 @@ func waitForQueryToFail(t *testing.T, apiClient *apiclient.APIClient, ctx contex
 		if query.Status == apiclient.FAILED {
 			t.Log(pit.FormatResponse(resp))
 			_, resp, _ := getQueryErrors(t, apiClient, ctx, queryId)
-			t.Log(pit.FormatResponse(resp))
+			t.Log("query failed, errors: ", pit.FormatResponse(resp))
 			return query, resp, err
 		} else if query.Status == apiclient.COMPLETED {
 			t.Log(pit.FormatResponse(resp))
@@ -149,7 +138,30 @@ func waitForQueryToComplete(t *testing.T, apiClient *apiclient.APIClient, ctx co
 	return nil, nil, errors.New("query timeout")
 }
 
-func getQueryResults(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, queryId string, rowLimit *int32, flushResult *bool) ([]apiclient.QueryResultInner, *http.Response, error) {
+func waitForeverForQueryToComplete(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, queryId string) (*apiclient.Query, *http.Response, error) {
+	for {
+		query, resp, err := apiClient.ExecutionAPI.GetQueryById(ctx, queryId).Execute()
+
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		if query.Status == apiclient.FAILED {
+			t.Log(pit.FormatResponse(resp))
+			require.Fail(t, "query failed")
+			return query, resp, err
+		} else if query.Status == apiclient.COMPLETED {
+			t.Log(pit.FormatResponse(resp))
+			return query, resp, err
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	require.Fail(t, "query timeout")
+	return nil, nil, errors.New("query timeout")
+}
+
+func getQueryResults(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, queryId string, rowLimit *int32, flushResult *bool, mayFail bool) ([]apiclient.QueryResultInner, *http.Response, error) {
 	queryResultRequest := apiclient.NewGetQueryResultRequest()
 
 	if rowLimit != nil {
@@ -165,10 +177,23 @@ func getQueryResults(t *testing.T, apiClient *apiclient.APIClient, ctx context.C
 		GetQueryResultRequest(*queryResultRequest).
 		Execute()
 
+	if !mayFail {
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	}
+
+	return results, resp, err
+}
+
+func getQueryErrors(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, queryId string) ([]apiclient.MultipleProblemsErrorProblemsInner, *http.Response, error) {
+	results, resp, err := apiClient.ExecutionAPI.
+		GetQueryError(ctx, queryId).
+		Execute()
+
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	return results, resp, err
+	return results.Problems, resp, err
 }
 
 func copyData(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, tableId string, filename string, hasHeader bool, columnOrder []string) (string, *http.Response, error) {
@@ -241,7 +266,7 @@ func TestBasicQueries(t *testing.T) {
 		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
-		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil)
+		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil, false)
 		// TODO what's the point of results array?
 		require.Equal(t, *results[0].RowCount, int32(5))
 
@@ -259,7 +284,7 @@ func TestBasicQueries(t *testing.T) {
 		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
-		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil)
+		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil, false)
 		// TODO what's the point of results array?
 		require.Equal(t, *results[0].RowCount, int32(5))
 
@@ -280,7 +305,7 @@ func TestBasicQueries(t *testing.T) {
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
 		var rowLimit int32 = 1000
-		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, &rowLimit, nil)
+		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, &rowLimit, nil, false)
 		// TODO what's the point of results array?
 		require.Equal(t, *results[0].RowCount, int32(rowLimit))
 
@@ -298,7 +323,7 @@ func TestBasicQueries(t *testing.T) {
 		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
-		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil)
+		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil, false)
 		// TODO what's the point of results array?
 		require.Equal(t, *results[0].RowCount, int32(5))
 		csv_col_num_to_schema_col_num := []int{1, 2, 3, 0}
@@ -361,7 +386,7 @@ func TestBasicQueries(t *testing.T) {
 		tableId := createTableWithCleanup(t, dbClient, ctx, peopleSchema)
 
 		queryId, _, _ := copyData(t, dbClient, ctx, tableId, filePathLong, false,
-			[]string{"name", "id", "surname", "surname"})
+			[]string{"name", "id", "surname", "age"})
 		_, _, _ = waitForQueryToFail(t, dbClient, ctx, queryId)
 	})
 
@@ -375,7 +400,7 @@ func TestBasicQueries(t *testing.T) {
 		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
-		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil)
+		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil, false)
 		require.Equal(t, *results[0].RowCount, int32(1000000))
 		csv_col_num_to_schema_col_num := []int{1, 2, 3, 0}
 		verifyPeopleCsv(t, filePathLong, results[0], false, csv_col_num_to_schema_col_num, nil)
@@ -394,8 +419,29 @@ func TestBasicQueries(t *testing.T) {
 		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
-		results, _, _ = getQueryResults(t, dbClient, ctx, queryId, nil, nil)
+		results, _, _ = getQueryResults(t, dbClient, ctx, queryId, nil, nil, false)
 		require.Equal(t, *results[0].RowCount, int32(1000000))
 		verifyPeopleCsv(t, filePathLong, results[0], false, csv_col_num_to_schema_col_num, nil)
+	})
+
+	t.Run("TableCopySelectFlush", func(t *testing.T) {
+		tableId := createTableWithCleanup(t, dbClient, ctx, peopleSchema)
+
+		queryId, _, _ := copyData(t, dbClient, ctx, tableId, filePathLong, false, csvColumnOrder)
+		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
+
+		var selectIds []string
+		for _ = range 10 {
+			queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
+			selectIds = append(selectIds, queryId)
+		}
+
+		for _, queryId := range selectIds {
+			_, _, _ = waitForeverForQueryToComplete(t, dbClient, ctx, queryId)
+			flush := true
+			_, _, _ = getQueryResults(t, dbClient, ctx, queryId, nil, &flush, false)
+			_, resp, _ := getQueryResults(t, dbClient, ctx, queryId, nil, &flush, true)
+			require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		}
 	})
 }
