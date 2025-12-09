@@ -2,9 +2,13 @@ package tests
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,6 +16,79 @@ import (
 	apiclient "github.com/smogork/ISBD-MIMUW/pit/client"
 	"github.com/stretchr/testify/require"
 )
+
+func verifyPeopleCsv(t *testing.T, csv_path string, results apiclient.QueryResultInner, hasHeader bool, csv_col_num_to_schema_col_num []int, rowLimit *int32) {
+	f, err := os.Open(csv_path)
+	require.NoError(t, err, "failed to read csv file")
+	defer f.Close()
+
+	colLen := 0
+
+	if rowLimit != nil {
+		for _, column := range results.Columns {
+			if column.ArrayOfInt64 != nil {
+				require.Equal(t, len(*column.ArrayOfInt64), int(*rowLimit), "int column len does not equal row limit")
+			} else {
+				require.Equal(t, len(*column.ArrayOfString), int(*rowLimit), "str column len does not equal row limit")
+			}
+		}
+
+		colLen = int(*rowLimit)
+	} else {
+		if results.Columns[0].ArrayOfInt64 != nil {
+			colLen = len(*results.Columns[0].ArrayOfInt64)
+		} else {
+			colLen = len(*results.Columns[0].ArrayOfString)
+		}
+
+		for _, column := range results.Columns[1:] {
+			if column.ArrayOfInt64 != nil {
+				require.Equal(t, len(*column.ArrayOfInt64), colLen, "column length differs between columns")
+			} else {
+				require.Equal(t, len(*column.ArrayOfString), colLen, "column length differs between columns")
+			}
+		}
+	}
+
+	reader := *csv.NewReader(f)
+	reader.Comma = ';'
+	// skip header
+	if hasHeader {
+		_, err = reader.Read()
+		require.NoError(t, err, "faied to read csv header")
+	}
+
+	i := 0
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			require.NoError(t, err, "failed to read csv row")
+		}
+
+		for col_num, col_csv := range record {
+			if col_num >= len(results.Columns) {
+				break
+			}
+			column := results.Columns[csv_col_num_to_schema_col_num[col_num]]
+			if column.ArrayOfInt64 != nil {
+				csv_field, err := strconv.ParseInt(col_csv, 10, 64)
+				require.NoError(t, err, "failed to parse csv field as int")
+				require.Equal(t, (*column.ArrayOfInt64)[i], csv_field, "data differs from source csv col %d row %d", col_num, i)
+			} else {
+				require.Equal(t, (*column.ArrayOfString)[i], col_csv, "data differs from source csv col %d row %d", col_num, i)
+			}
+		}
+
+		i += 1
+		if rowLimit != nil && i >= int(*rowLimit) {
+			break
+		}
+	}
+
+	require.Equal(t, i, colLen, "csv len != min(rowLimit, column length) %d %d", i, colLen)
+}
 
 func getQueryErrors(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, queryId string) (*apiclient.MultipleProblemsError, *http.Response, error) {
 	results, resp, err := apiClient.ExecutionAPI.
@@ -113,7 +190,7 @@ func copyData(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context,
 	return queryId, resp, err
 }
 
-func selectData(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, tableId string) (string, *http.Response, error) {
+func selectData(t *testing.T, apiClient *apiclient.APIClient, ctx context.Context, tableId string, mayFail bool) (string, *http.Response, error) {
 	selectQuery := apiclient.NewSelectQuery()
 	selectQuery.SetTableName(tableId)
 
@@ -125,8 +202,10 @@ func selectData(t *testing.T, apiClient *apiclient.APIClient, ctx context.Contex
 		).
 		Execute()
 
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	if !mayFail {
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	}
 
 	return queryId, resp, err
 }
@@ -159,13 +238,16 @@ func TestBasicQueries(t *testing.T) {
 		queryId, _, _ := copyData(t, dbClient, ctx, tableId, filePathWithoutHeader, false, csvColumnOrder)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
-		queryId, _, _ = selectData(t, dbClient, ctx, tableId)
+		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
 		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil)
 		// TODO what's the point of results array?
 		require.Equal(t, *results[0].RowCount, int32(5))
-		// TODO verify rest of the result
+
+		// NOTE: tests sort columns in schema before creating table
+		csv_col_num_to_schema_col_num := []int{1, 2, 3, 0}
+		verifyPeopleCsv(t, filePathWithoutHeader, results[0], false, csv_col_num_to_schema_col_num, nil)
 	})
 
 	t.Run("TableCopyWithHeaderAndSelect", func(t *testing.T) {
@@ -174,14 +256,19 @@ func TestBasicQueries(t *testing.T) {
 		queryId, _, _ := copyData(t, dbClient, ctx, tableId, filePathWithHeader, true, csvColumnOrder)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
-		queryId, _, _ = selectData(t, dbClient, ctx, tableId)
+		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
 		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil)
 		// TODO what's the point of results array?
 		require.Equal(t, *results[0].RowCount, int32(5))
-		// TODO verify rest of the result
+
+		// NOTE: tests sort columns in schema before creating table
+		csv_col_num_to_schema_col_num := []int{1, 2, 3, 0}
+		verifyPeopleCsv(t, filePathWithHeader, results[0], true, csv_col_num_to_schema_col_num, nil)
 	})
+
+	// TODO what should happen with file with headers and without order?
 
 	t.Run("TableCopyAndSelectWithLimit", func(t *testing.T) {
 		tableId := createTableWithCleanup(t, dbClient, ctx, peopleSchema)
@@ -189,14 +276,17 @@ func TestBasicQueries(t *testing.T) {
 		queryId, _, _ := copyData(t, dbClient, ctx, tableId, filePathLong, false, csvColumnOrder)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
-		queryId, _, _ = selectData(t, dbClient, ctx, tableId)
+		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
 		var rowLimit int32 = 1000
 		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, &rowLimit, nil)
 		// TODO what's the point of results array?
-		require.Equal(t, *results[0].RowCount, int32(1000))
-		// TODO verify rest of the result
+		require.Equal(t, *results[0].RowCount, int32(rowLimit))
+
+		// NOTE: tests sort columns in schema before creating table
+		csv_col_num_to_schema_col_num := []int{1, 2, 3, 0}
+		verifyPeopleCsv(t, filePathLong, results[0], false, csv_col_num_to_schema_col_num, &rowLimit)
 	})
 
 	t.Run("TableCopyTooManyColumns", func(t *testing.T) {
@@ -205,13 +295,21 @@ func TestBasicQueries(t *testing.T) {
 		queryId, _, _ := copyData(t, dbClient, ctx, tableId, filePathTooManyColumns, true, csvColumnOrder)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
-		queryId, _, _ = selectData(t, dbClient, ctx, tableId)
+		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
 		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil)
 		// TODO what's the point of results array?
 		require.Equal(t, *results[0].RowCount, int32(5))
-		// TODO verify rest of the result
+		csv_col_num_to_schema_col_num := []int{1, 2, 3, 0}
+		verifyPeopleCsv(t, filePathTooManyColumns, results[0], true, csv_col_num_to_schema_col_num, nil)
+	})
+
+	t.Run("TableCopyTooManyColumnsWithoutOrder", func(t *testing.T) {
+		tableId := createTableWithCleanup(t, dbClient, ctx, peopleSchema)
+
+		queryId, _, _ := copyData(t, dbClient, ctx, tableId, filePathTooManyColumns, true, nil)
+		_, _, _ = waitForQueryToFail(t, dbClient, ctx, queryId)
 	})
 
 	t.Run("TableCopyWithNonexistentFile", func(t *testing.T) {
@@ -274,11 +372,13 @@ func TestBasicQueries(t *testing.T) {
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
 		// select data and check if row count matches
-		queryId, _, _ = selectData(t, dbClient, ctx, tableId)
+		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
 		results, _, _ := getQueryResults(t, dbClient, ctx, queryId, nil, nil)
 		require.Equal(t, *results[0].RowCount, int32(1000000))
+		csv_col_num_to_schema_col_num := []int{1, 2, 3, 0}
+		verifyPeopleCsv(t, filePathLong, results[0], false, csv_col_num_to_schema_col_num, nil)
 
 		resp, _ := deleteTable(t, dbClient, ctx, tableId, true)
 		require.Equal(t, http.StatusOK, resp.StatusCode, true)
@@ -291,10 +391,11 @@ func TestBasicQueries(t *testing.T) {
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
 		// select data and check if row count matches on the new table
-		queryId, _, _ = selectData(t, dbClient, ctx, tableId)
+		queryId, _, _ = selectData(t, dbClient, ctx, tableId, false)
 		_, _, _ = waitForQueryToComplete(t, dbClient, ctx, queryId)
 
 		results, _, _ = getQueryResults(t, dbClient, ctx, queryId, nil, nil)
 		require.Equal(t, *results[0].RowCount, int32(1000000))
+		verifyPeopleCsv(t, filePathLong, results[0], false, csv_col_num_to_schema_col_num, nil)
 	})
 }
