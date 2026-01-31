@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	openapi1 "github.com/smogork/ISBD-MIMUW/pit/client/openapi1"
 	openapi2 "github.com/smogork/ISBD-MIMUW/pit/client/openapi2"
-	"github.com/docker/go-connections/nat"
 	tc "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -63,7 +64,7 @@ func waitForHTTP(url string, timeout time.Duration) error {
 // - DB_IMAGE: docker image name (default: "isbd-mimuw-db:latest")
 // - DB_HOSTNAME: hostname of running database (default: "localhost")
 // - DB_PORT: port on which database listens (default: "8080")
-func StartTestContainer(ctx context.Context) (string, func(), error) {
+func StartTestContainer(ctx context.Context, dbMemoryBytes int64) (string, func(), error) {
 	dbRunDocker := os.Getenv("DB_RUN_DOCKER")
 	if dbRunDocker == "" {
 		dbRunDocker = "false" // By default use already running DB
@@ -97,8 +98,8 @@ func StartTestContainer(ctx context.Context) (string, func(), error) {
 	if port == "" {
 		port = "8080"
 	}
-    
-  // Get absolute path to tables directory for bind mount
+
+	// Get absolute path to tables directory for bind mount
 	// The tables directory is at pit/tables, relative to where go test runs (pit/tests)
 	tablesDir, err := filepath.Abs(filepath.Join("..", "tables"))
 	if err != nil {
@@ -110,9 +111,17 @@ func StartTestContainer(ctx context.Context) (string, func(), error) {
 		Image:        image,
 		ExposedPorts: []string{portSpec},
 		WaitingFor:   wait.ForHTTP("/system/info").WithPort(nat.Port(portSpec)).WithStartupTimeout(30 * time.Second),
-    Mounts: tc.Mounts(
+		Mounts: tc.Mounts(
 			tc.BindMount(tablesDir, "/data/tables"),
 		),
+		// Use cgroups to limit accessible memory
+		HostConfigModifier: func(hc *container.HostConfig) {
+			if dbMemoryBytes > 0 {
+				// Set memory limit and disallow swap (set swap == memory) so OOM kills the process
+				hc.Resources.Memory = dbMemoryBytes
+				hc.Resources.MemorySwap = dbMemoryBytes
+			}
+		},
 	}
 
 	cont, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{ContainerRequest: req, Started: true})

@@ -56,16 +56,16 @@ var (
 
 // TestResult holds information about a test execution
 type TestResult struct {
-	Name      string
-	Passed    bool
+	Name       string
+	Passed     bool
 	FailureMsg string
 }
 
 // testResultTracker tracks all test results for summary
 type testResultTracker struct {
-	mu           sync.Mutex
-	results      []TestResult
-	failureMsgs  map[string]string // testName -> failure message
+	mu          sync.Mutex
+	results     []TestResult
+	failureMsgs map[string]string // testName -> failure message
 }
 
 var globalTestTracker = &testResultTracker{
@@ -242,7 +242,7 @@ func TestMain(m *testing.M) {
 	}
 
 	ctx := context.Background()
-	base, teardown, err := pit.StartTestContainer(ctx)
+	base, teardown, err := pit.StartTestContainer(ctx, DbMemoryBytes)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to start test container:", err)
 		os.Exit(1)

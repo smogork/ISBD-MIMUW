@@ -219,6 +219,7 @@ func TestFunctional_StringFunctionsLiterals(t *testing.T) {
 	RequireInterfaceVersion(t, 2)
 	dbClient := pit.DbClient(BaseURL)
 	ctx := context.Background()
+	_ = SetupTestTable(t, dbClient, ctx, "types_test")
 
 	runner := NewFunctionalTestRunner(t, dbClient, ctx)
 
