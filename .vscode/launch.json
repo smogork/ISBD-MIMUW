@@ -47,6 +47,48 @@
             ]
         },
         {
+            "name": "Run CSE tests to 128MB",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/pit/tests",
+            "args": [
+                "-test.run",
+                "CSE",
+                "-test.v",
+                "-db-run-docker",
+                "true",
+                "-db-image",
+                "${input:dbImage}",
+                "--db-port", "8080",
+                "--interface-version",
+                "2",
+                "--db-memory",
+                "134217728"
+            ]
+        },
+        {
+            "name": "Run Sorting tests to 128MB",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/pit/tests",
+            "args": [
+                "-test.run",
+                "TestStress_Sort",
+                "-test.v",
+                "-db-run-docker",
+                "true",
+                "-db-image",
+                "${input:dbImage}",
+                "--db-port", "8080",
+                "--interface-version",
+                "2",
+                "--db-memory",
+                "134217728"
+            ]
+        },
+        {
             "name": "Copy_Success_Headless",
             "type": "go",
             "request": "launch",
@@ -104,14 +146,14 @@
             ]
         },
         {
-            "name": "TestFunctional_StringFunctions/REPLACE",
+            "name": "TestFunctional_StringFunctionsLiterals/SELECT_1",
             "type": "go",
             "request": "launch",
             "mode": "test",
             "program": "${workspaceFolder}/pit/tests",
             "args": [
                 "-test.run",
-                "TestFunctional_StringFunctions/REPLACE",
+                "TestFunctional_StringFunctionsLiterals/SELECT_1",
                 "-test.v",
                 "-db-run-docker",
                 "true",
