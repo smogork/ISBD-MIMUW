@@ -233,7 +233,10 @@ func TestQueryValidation_Literals(t *testing.T) {
 	runner.AddSuccessCase("FalseLiteral", "SELECT FALSE FROM people")
 	runner.AddSuccessCase("LiteralArithmetic", "SELECT 1 + 2 + 3 FROM people")
 	runner.AddSuccessCase("LiteralStringConcat", "SELECT CONCAT('Hello', ' World') FROM people")
+	runner.AddSuccessCase("LiteralStringReplace", "SELECT REPLACE('Hello world!', ' World', ' Interface') FROM people")
 	runner.AddSuccessCase("MixedLiteralAndColumn", "SELECT age + 100 FROM people")
+
+	runner.AddFailureCase("LiteralStringReplace", "SELECT REPLACE('Hello world!', 1, TRUE) FROM people", "type")
 
 	runner.Run()
 }

@@ -202,6 +202,15 @@ func TestFunctional_StringFunctions(t *testing.T) {
 		"SELECT CONCAT(varchar_col, '!') FROM types_test ORDER BY 0 ASC",
 		[][]interface{}{{"hello!"}, {"test!"}, {"world!"}})
 
+	// REPLACE
+	runner.AddCase("REPLACE",
+		"SELECT REPLACE(varchar_col, 'l', 'L') FROM types_test ORDER BY 0 ASC",
+		[][]interface{}{{"HeLLo"}, {"Test"}, {"WorLd"}})
+
+	runner.AddCase("REPLACE literal",
+		"SELECT REPLACE('Hello world', 'l', 'L') FROM types_test",
+		[][]interface{}{{"HeLLo WorLd"}})
+
 	// Nested functions
 	runner.AddCase("NestedFunctions",
 		"SELECT STRLEN(UPPER(varchar_col)) FROM types_test ORDER BY 0 ASC",

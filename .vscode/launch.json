@@ -30,6 +30,23 @@
             ]
         },
         {
+            "name": "All V2 tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/pit/tests",
+            "args": [
+                "-test.v",
+                "-db-run-docker",
+                "true",
+                "-db-image",
+                "${input:dbImage}",
+                "--db-port", "8080",
+                "--interface-version",
+                "2"
+            ]
+        },
+        {
             "name": "Copy_Success_Headless",
             "type": "go",
             "request": "launch",
