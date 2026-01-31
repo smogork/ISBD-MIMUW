@@ -146,14 +146,14 @@
             ]
         },
         {
-            "name": "TestFunctional_StringFunctionsLiterals/SELECT_1",
+            "name": "TestFunctional_StringFunctionsLiterals/STRLEN",
             "type": "go",
             "request": "launch",
             "mode": "test",
             "program": "${workspaceFolder}/pit/tests",
             "args": [
                 "-test.run",
-                "TestFunctional_StringFunctionsLiterals/SELECT_1",
+                "TestFunctional_StringFunctionsLiterals/STRLEN",
                 "-test.v",
                 "-db-run-docker",
                 "true",

@@ -220,43 +220,44 @@ func TestFunctional_StringFunctionsLiterals(t *testing.T) {
 	dbClient := pit.DbClient(BaseURL)
 	ctx := context.Background()
 	_ = SetupTestTable(t, dbClient, ctx, "types_test")
+	LoadTestData(t, dbClient, ctx, "types_test")
 
 	runner := NewFunctionalTestRunner(t, dbClient, ctx)
 
 	// SELECT 1
 	runner.AddCase("SELECT_1",
-		"SELECT 1 FROM types_test",
+		"SELECT 1",
 		[][]interface{}{{int64(1)}})
 
-	runner.AddCase("STRLEN_Literal",
+	runner.AddCase("STRLEN",
 		"SELECT STRLEN('test')",
 		[][]interface{}{{int64(4)}})
 
-	runner.AddCase("UPPER_Literal",
+	runner.AddCase("UPPER",
 		"SELECT UPPER('hello')",
 		[][]interface{}{{"HELLO"}})
 
-	runner.AddCase("LOWER_Literal",
+	runner.AddCase("LOWER",
 		"SELECT LOWER('HeLLo')",
 		[][]interface{}{{"hello"}})
 
-	runner.AddCase("CONCAT_Literal",
+	runner.AddCase("CONCAT",
 		"SELECT CONCAT('hello', '!')",
 		[][]interface{}{{"hello!"}})
 
-	runner.AddCase("CONCAT_Empty_Literal",
+	runner.AddCase("CONCAT_Empty",
 		"SELECT CONCAT('', 'foo')",
 		[][]interface{}{{"foo"}})
 
-	runner.AddCase("REPLACE_Literal",
+	runner.AddCase("REPLACE",
 		"SELECT REPLACE('Hello world', 'l', 'L')",
 		[][]interface{}{{"HeLLo WorLd"}})
 
-	runner.AddCase("REPLACE_NoMatch_Literal",
+	runner.AddCase("REPLACE_NoMatch",
 		"SELECT REPLACE('abc', 'x', 'y')",
 		[][]interface{}{{"abc"}})
 
-	runner.AddCase("NestedFunctions_Literal",
+	runner.AddCase("NestedFunctions",
 		"SELECT STRLEN(UPPER('hello'))",
 		[][]interface{}{{int64(5)}})
 
