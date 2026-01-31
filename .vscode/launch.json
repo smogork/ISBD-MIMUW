@@ -103,55 +103,15 @@
                 "1"
             ]
         },
-                {
-            "name": "Stress copy",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceFolder}/pit/tests",
-            "args": [
-                "-test.run",
-                "TestV1_Stress_CopyAtomicity",
-                "-db-run-docker",
-                "true",
-                "-db-image",
-                "${input:dbImage}",
-                "--db-port", "8080",
-                "--interface-version",
-                "1",
-                "--db-memory", "1"
-            ]
-        },
-
-                {
-            "name": "Concurrent copy",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceFolder}/pit/tests",
-            "args": [
-                "-test.run",
-                "TestV1_Stress_ConcurrentCopy",
-                "-test.v",
-                "-db-run-docker",
-                "true",
-                "-db-image",
-                "${input:dbImage}",
-                "--db-port", "8080",
-                "--interface-version",
-                "1",
-                "--db-memory", "1"
-            ]
-        },
         {
-            "name": "TestTableCreation_Atomicity/CreateWithEmptyName_Fails",
+            "name": "TestFunctional_StringFunctions/REPLACE",
             "type": "go",
             "request": "launch",
             "mode": "test",
             "program": "${workspaceFolder}/pit/tests",
             "args": [
                 "-test.run",
-                "TestTableCreation_Atomicity/CreateWithEmptyName_Fails",
+                "TestFunctional_StringFunctions/REPLACE",
                 "-test.v",
                 "-db-run-docker",
                 "true",
@@ -159,102 +119,7 @@
                 "${input:dbImage}",
                 "--db-port", "8080",
                 "--interface-version",
-                "1"
-            ]
-        },
-        {
-            "name": "TestV1_StateConsistency/CreateDeleteCreate_SameName",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceFolder}/pit/tests",
-            "args": [
-                "-test.run",
-                "TestV1_StateConsistency/CreateDeleteCreate_SameName",
-                "-test.v",
-                "-db-run-docker",
-                "true",
-                "-db-image",
-                "${input:dbImage}",
-                "--db-port", "8080",
-                "--interface-version",
-                "1"
-            ]
-        },
-        {
-            "name": "TestV1_Copy/Copy_InvalidPath_NoPartialData",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceFolder}/pit/tests",
-            "args": [
-                "-test.run",
-                "TestV1_Copy/Copy_InvalidPath_NoPartialData",
-                "-test.v",
-                "-db-run-docker",
-                "true",
-                "-db-image",
-                "${input:dbImage}",
-                "--db-port", "8080",
-                "--interface-version",
-                "1"
-            ]
-        },
-        {
-            "name": "TestV1_Copy/Copy_EmptyTable_SelectReturnsEmpty",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceFolder}/pit/tests",
-            "args": [
-                "-test.run",
-                "TestV1_Copy/Copy_EmptyTable_SelectReturnsEmpty",
-                "-test.v",
-                "-db-run-docker",
-                "true",
-                "-db-image",
-                "${input:dbImage}",
-                "--db-port", "8080",
-                "--interface-version",
-                "1"
-            ]
-        },
-        {
-            "name": "TestV1_SelectStar/SelectStar_EmptyTable",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceFolder}/pit/tests",
-            "args": [
-                "-test.run",
-                "TestV1_SelectStar/SelectStar_EmptyTable",
-                "-test.v",
-                "-db-run-docker",
-                "true",
-                "-db-image",
-                "${input:dbImage}",
-                "--db-port", "8080",
-                "--interface-version",
-                "1"
-            ]
-        },
-        {
-            "name": "TestV1_Copy",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceFolder}/pit/tests",
-            "args": [
-                "-test.run",
-                "TestV1_Copy",
-                "-test.v",
-                "-db-run-docker",
-                "true",
-                "-db-image",
-                "${input:dbImage}",
-                "--db-port", "8080",
-                "--interface-version",
-                "1"
+                "2"
             ]
         }
     ]

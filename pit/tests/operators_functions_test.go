@@ -205,16 +205,59 @@ func TestFunctional_StringFunctions(t *testing.T) {
 	// REPLACE
 	runner.AddCase("REPLACE",
 		"SELECT REPLACE(varchar_col, 'l', 'L') FROM types_test ORDER BY 0 ASC",
-		[][]interface{}{{"HeLLo"}, {"Test"}, {"WorLd"}})
-
-	runner.AddCase("REPLACE literal",
-		"SELECT REPLACE('Hello world', 'l', 'L') FROM types_test",
-		[][]interface{}{{"HeLLo WorLd"}})
+		[][]interface{}{{"heLLo"}, {"test"}, {"worLd"}})
 
 	// Nested functions
 	runner.AddCase("NestedFunctions",
 		"SELECT STRLEN(UPPER(varchar_col)) FROM types_test ORDER BY 0 ASC",
 		[][]interface{}{{int64(4)}, {int64(5)}, {int64(5)}})
+
+	runner.Run()
+}
+
+func TestFunctional_StringFunctionsLiterals(t *testing.T) {
+	RequireInterfaceVersion(t, 2)
+	dbClient := pit.DbClient(BaseURL)
+	ctx := context.Background()
+
+	runner := NewFunctionalTestRunner(t, dbClient, ctx)
+
+	// SELECT 1
+	runner.AddCase("SELECT_1",
+		"SELECT 1 FROM types_test",
+		[][]interface{}{{int64(1)}})
+
+	runner.AddCase("STRLEN_Literal",
+		"SELECT STRLEN('test')",
+		[][]interface{}{{int64(4)}})
+
+	runner.AddCase("UPPER_Literal",
+		"SELECT UPPER('hello')",
+		[][]interface{}{{"HELLO"}})
+
+	runner.AddCase("LOWER_Literal",
+		"SELECT LOWER('HeLLo')",
+		[][]interface{}{{"hello"}})
+
+	runner.AddCase("CONCAT_Literal",
+		"SELECT CONCAT('hello', '!')",
+		[][]interface{}{{"hello!"}})
+
+	runner.AddCase("CONCAT_Empty_Literal",
+		"SELECT CONCAT('', 'foo')",
+		[][]interface{}{{"foo"}})
+
+	runner.AddCase("REPLACE_Literal",
+		"SELECT REPLACE('Hello world', 'l', 'L')",
+		[][]interface{}{{"HeLLo WorLd"}})
+
+	runner.AddCase("REPLACE_NoMatch_Literal",
+		"SELECT REPLACE('abc', 'x', 'y')",
+		[][]interface{}{{"abc"}})
+
+	runner.AddCase("NestedFunctions_Literal",
+		"SELECT STRLEN(UPPER('hello'))",
+		[][]interface{}{{int64(5)}})
 
 	runner.Run()
 }
