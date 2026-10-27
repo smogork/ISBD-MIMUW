@@ -29,12 +29,19 @@ Jako początek systemu przygotuj komponent odpowiedzialny za zapis oraz odczyt p
 ## Reprezentacja w pamięci
 
 Aby móc operować na wczytanych danych (lub je zapisać do pliku) potrzebna jest reprezentacja danych w pamięci.
-Przygotuj typ reprezentujący kolumnowe dane gotowe do przetwarzania.
-**Przygotuj strukturę danych w taki sposób, aby procesor mógł pracować na nich najbardziej wydajnie.**
+Przygotuj typ reprezentujący kolumnowe dane gotowe do przetwarzania nazywany dalej **Batchem**.
+
+Zaproponowany format pliku powinien przechowywać kolumny z formatu pliku w sposób odpowiedni do przetwarzania instrukcjami SIMD oraz być zorientowany kolumnowo (Struct of Arrays).
+Dodatkowo przygotuj się na przetwarzanie większej ilości danych niż dostępna pamięć operacyjna, więc deserializator powinien zwróć wiele batchy w przypadku długich plików.
+Każdy taki batch powinien być ograniczony z góry pewną liczbą wierszy `BATCH_SIZE` (np. 1024).
+
+Jednak najważniejszą funkcją batcha jest wykonywanie operacji na danych.
+Zaproponowany interfejs powinien dawać dostęp do danych na poziomie wiersza.
+Typową operacją do wyobrażenia sobie może być konkatenacja napisów z kolumny stringowej S1 i S2 oraz zapisanie wyniku do kolumny S3.
 
 ## Struktura projektu
 Jest to baza do zaliczenia kolejnych projektów. Proponuję wybrać technologię, która ułatwi pracę z danymi na tak niskim poziomie oraz będzie miała do dyspozycji dobrze znaną bibliotekę do implementacji REST API.
-Moja propozycją jest jezyk rust.
+Moją propozycją jest język rust.
 
 Do zaliczenia należy przygotować program, który wczytuje plik w zadanym formacie, wykonuje deserializację oraz wyznacza dwie metryki z wczytanych danych:
 * Dla każdej kolumny o typie całkowitym oblicza średnią z wartości kolumny.
