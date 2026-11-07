@@ -55,7 +55,7 @@ impl<'s, W: Write> FileWriter<'s, W> {
 
     pub fn finish(mut self) -> io::Result<W> {
         self.buffer.clear();
-        self.footer.encode(&mut self.buffer);
+        self.footer.encode(&mut self.buffer).map_err(io::Error::other)?;
         self.io_sink.write_all(&self.buffer)?;
         self.io_sink.flush()?;
         Ok(self.io_sink)

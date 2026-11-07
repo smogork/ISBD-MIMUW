@@ -3,5 +3,14 @@
 version = 4
 
 [[package]]
+name = "lz4_flex"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecbdfe44b1bd960b68170b417450a628c43f7cf56bb3c5317e61cb230ee7f226"
+
+[[package]]
 name = "proj2"
 version = "0.1.0"
+dependencies = [
+ "lz4_flex",
+]
