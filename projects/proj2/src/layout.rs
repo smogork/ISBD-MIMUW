@@ -1,6 +1,7 @@
+use std::io;
 use std::num::TryFromIntError;
 
-use crate::encoding::write_varint;
+use crate::encoding::{read_varint, write_varint};
 
 pub const NAME: [u8; 7] = *b"PARKIET";
 pub const VERSION: u16 = 1;
@@ -46,6 +47,45 @@ impl<'a> Footer<'a> {
         Ok(())
     }
 
+    pub fn parse(file: &'a [u8]) -> io::Result<Self> {
+        let trailer_start = file.len() - NAME.len() - size_of::<u32>();
+        let len_bytes = [
+            file[trailer_start],
+            file[trailer_start + 1],
+            file[trailer_start + 2],
+            file[trailer_start + 3],
+        ];
+        let footer_len = u32::from_le_bytes(len_bytes) as usize;
+        let mut source = &file[trailer_start - footer_len..trailer_start];
+
+        let column_count = read_varint(&mut source) as usize;
+        let mut fields = Vec::with_capacity(column_count);
+        for _ in 0..column_count {
+            let name_len = read_varint(&mut source) as usize;
+            let name = std::str::from_utf8(&source[..name_len]).map_err(io::Error::other)?;
+            let data_type = DataType::from_byte_repr(source[name_len]);
+            source = &source[name_len + 1..];
+            fields.push(Field::new(name, data_type));
+        }
+
+        let group_count = read_varint(&mut source) as usize;
+        let mut group_rows = Vec::with_capacity(group_count);
+        let mut chunks = Vec::with_capacity(group_count * column_count);
+        for _ in 0..group_count {
+            group_rows.push(read_varint(&mut source));
+            for _ in 0..column_count {
+                let offset = read_varint(&mut source);
+                let len = read_varint(&mut source);
+                chunks.push(Chunk { offset, len });
+            }
+        }
+
+        Ok(Self {
+            schema: Schema::new(fields),
+            group_rows,
+            chunks,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -56,7 +96,7 @@ pub struct Chunk {
 
 #[derive(Debug)]
 pub struct Schema<'a> {
-    fields: Vec<Field<'a>>,
+    pub fields: Vec<Field<'a>>,
 }
 
 impl<'a> Schema<'a> {
@@ -78,7 +118,7 @@ impl<'a> Field<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataType {
     Int64,
     Varchar,
@@ -89,6 +129,14 @@ impl DataType {
         match self {
             DataType::Int64 => 0u8,
             DataType::Varchar => 1u8,
+        }
+    }
+
+    pub fn from_byte_repr(byte: u8) -> Self {
+        match byte {
+            0 => DataType::Int64,
+            1 => DataType::Varchar,
+            other => panic!("unknown data type byte {other}"),
         }
     }
 }
@@ -123,5 +171,46 @@ impl<'a> StrColumn<'a> {
     }
     pub fn len(&self) -> usize {
         self.offsets.len() - 1
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct StrBuffer {
+    pub data: String,
+    pub offsets: Vec<u32>,
+}
+
+impl StrBuffer {
+    pub fn view(&self) -> StrColumn<'_> {
+        StrColumn::new(&self.data, &self.offsets)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ColumnBuffer {
+    Int64(Vec<i64>),
+    Varchar(StrBuffer),
+}
+
+impl ColumnBuffer {
+    pub fn new(data_type: DataType) -> Self {
+        match data_type {
+            DataType::Int64 => Self::Int64(Vec::new()),
+            DataType::Varchar => Self::Varchar(StrBuffer::default()),
+        }
+    }
+
+    pub fn data_type(&self) -> DataType {
+        match self {
+            Self::Int64(_) => DataType::Int64,
+            Self::Varchar(_) => DataType::Varchar,
+        }
+    }
+
+    pub fn view(&self) -> Column<'_> {
+        match self {
+            Self::Int64(values) => Column::Int64(values),
+            Self::Varchar(values) => Column::Varchar(values.view()),
+        }
     }
 }
