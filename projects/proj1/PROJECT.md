@@ -29,21 +29,17 @@ W ramach tego laboratorium będziemy badać program, który wykorzystuje odczyt 
 
 Wszystkie poniższe programy będą dzieliły wczytany plik na bloki o rozmiarze `M` bajtów.
 Ich celem jest obliczenie funkcji skrótu każdego bloku z osobna i połączenie go w jeden finalny wynik.
-$$
-\begin{aligned}
-R(F) = H(B_1) \oplus H(B_2) \oplus \dots \oplus H(B_N)
-\end{aligned}
-$$,
+
+$$R(F) = H(B_1) \oplus H(B_2) \oplus \dots \oplus H(B_N),$$
+
 gdzie $N$ to ilość bloków, na które podzielony jest plik $F$.
 Blok $B_i$ to ciągły kawałek pliku rozpoczynający się na bajcie $i \cdot M$ i kończący się na $(i + 1)M - 1$.
 Powyższa funkcja skrótu jest przemienna i łączna, co daje nam taki sam wynik niezależnie od kolejności odczytanych bloków w pliku.
 
-Aby dodać parametr sterujący ilościa obliczeń programu, funkcja hashująca to wielokrotne wykonanie funkcji MD5 na wyjściu poprzedniej iteracji.
-$$
-\begin{aligned}
-H(B,K) = \underbrace{MD5(MD5( \dots MD5(B)))}_\text{K razy}
-\end{aligned}
-$$
+Aby dodać parametr sterujący ilościa obliczeń programu, funkcja hashująca to wielokrotne wykonanie funkcji MD5 na wyjściu poprzedniej iteracji
+
+$$H(B,K) = \underbrace{MD5(MD5( \dots MD5(B)))}_\text{K razy}.$$
+
 Ta technika to tzw. *Key Stretching*.
 Pozwala ona parametryzować jak trudno jest wykonać atak brute-force na hash zwiększając wartość $K$.
 
@@ -182,4 +178,4 @@ Na laboratorium nr 3 wykonamy test wybranych programów na trzech różnych tech
 * Odnośniki do dokumentacji biblioteki standardowej Rusta
   * [`std::time::Instant`](https://doc.rust-lang.org/std/time/struct.Instant.html)
   * [`memmap`](https://docs.rs/memmap/latest/memmap/struct.Mmap.html)
-  * [`std::sync::mpsc::sync_channel](https://doc.rust-lang.org/beta/std/sync/mpsc/fn.sync_channel.html)
+  * [`std::sync::mpsc::sync_channel`](https://doc.rust-lang.org/beta/std/sync/mpsc/fn.sync_channel.html)

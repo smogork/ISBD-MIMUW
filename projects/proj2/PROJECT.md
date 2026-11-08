@@ -15,8 +15,8 @@ Celem laboratorium jest przygotowanie własnego formatu pliku, który będzie s�
 
 Zaproponowany format powinien wspierać następujące funkcje:
 * Przechowywanie dowolnej ilości kolumn
-* Kolumny mają dwa dozwolone typy: 64-bitowa liczba całkowita ze znakiem oraz napis dowolnej długości (VARCHAR)
-* Format pliku powinien wspierać kompresję (int64 powinien uzywac VLE oraz delta encoding, a VARCHAR kolumna ZTSD albo LZ4).
+* Kolumny mają trzy dozwolone typy: 64-bitowa liczba całkowita ze znakiem, typ boolean oraz napis dowolnej długości (VARCHAR)
+* Format pliku powinien wspierać kompresję (int64 powinien uzywac VLE oraz delta encoding, boolean powinien zajmować dokładnie 1 bit a VARCHAR kolumna ZTSD albo LZ4).
 * Dane w pliku powinny być tabelaryczne (tzn. każda kolumna w pliku ma taka samą długość)
 
 Istnieje otwarty format [Parquet](https://parquet.apache.org/docs/file-format/), który może służyć za inspirację dla własnego formatu.
@@ -29,19 +29,28 @@ Jako początek systemu przygotuj komponent odpowiedzialny za zapis oraz odczyt p
 ## Reprezentacja w pamięci
 
 Aby móc operować na wczytanych danych (lub je zapisać do pliku) potrzebna jest reprezentacja danych w pamięci.
-Przygotuj typ reprezentujący kolumnowe dane gotowe do przetwarzania.
-**Przygotuj strukturę danych w taki sposób, aby procesor mógł pracować na nich najbardziej wydajnie.**
+Przygotuj typ reprezentujący kolumnowe dane gotowe do przetwarzania nazywany dalej **Batchem**.
+
+Zaproponowany format pliku powinien przechowywać kolumny z formatu pliku w sposób odpowiedni do przetwarzania instrukcjami SIMD oraz być zorientowany kolumnowo (Struct of Arrays).
+Dodatkowo przygotuj się na przetwarzanie większej ilości danych niż dostępna pamięć operacyjna, więc deserializator powinien zwróć wiele batchy w przypadku długich plików.
+Każdy taki batch powinien być ograniczony z góry pewną liczbą wierszy `BATCH_SIZE` (np. 1024).
+
+Jednak najważniejszą funkcją batcha jest wykonywanie operacji na danych.
+Zaproponowany interfejs powinien dawać dostęp do danych na poziomie wiersza.
+Typową operacją do wyobrażenia sobie może być konkatenacja napisów z kolumny stringowej S1 i S2 oraz zapisanie wyniku do kolumny S3.
 
 ## Struktura projektu
 Jest to baza do zaliczenia kolejnych projektów. Proponuję wybrać technologię, która ułatwi pracę z danymi na tak niskim poziomie oraz będzie miała do dyspozycji dobrze znaną bibliotekę do implementacji REST API.
+Moją propozycją jest język rust.
 
 Do zaliczenia należy przygotować program, który wczytuje plik w zadanym formacie, wykonuje deserializację oraz wyznacza dwie metryki z wczytanych danych:
 * Dla każdej kolumny o typie całkowitym oblicza średnią z wartości kolumny.
+* Dla każdej kolumny boolean oblicza funkcje binarnej entropii.
 * Dla każdej kolumny o typie VARCHAR wyznacza liczbę wszystkich występujących znaków ASCII.
 
 ![project-schema](res/project-schema.svg)
 
-**Proszę dostarczyć przykładowy plik zawierający 2 kolumny INT64 oraz 2 kolumny VARCHAR. Jest to warunek konieczny do sprawdzenia działania projektu zaliczeniowego.** To od teraz twój format danych.
+**Proszę dostarczyć przykładowy plik zawierający 1 kolumnę INT64, jedną kolumne BOOLEAN oraz 2 kolumny VARCHAR. Jest to warunek konieczny do sprawdzenia działania projektu zaliczeniowego.** To od teraz twój format danych.
 
 Warto także napisać program, który wykonuje operację serializacji, aby wygenerować taki plik.
 
@@ -72,3 +81,4 @@ Zachęcam do implementacji obydwu typów testów, jednak typ `end-to-end` jest z
 * [LZ4](https://github.com/lz4/lz4)
 * [ZTSD](https://github.com/facebook/zstd)
 * [Parquet](https://parquet.apache.org/docs/file-format/)
+* [Entropia Binarna](https://pl.wikipedia.org/wiki/Entropia_binarna)
