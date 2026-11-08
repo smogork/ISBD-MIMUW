@@ -48,6 +48,12 @@ impl<'a> Footer<'a> {
     }
 
     pub fn parse(file: &'a [u8]) -> io::Result<Self> {
+        if file.len() < HEADER_LEN + NAME.len() + size_of::<u32>()
+            || file[..NAME.len()] != NAME
+            || file[file.len() - NAME.len()..] != NAME
+        {
+            return Err(io::Error::other("not a PARKIET file"));
+        }
         let trailer_start = file.len() - NAME.len() - size_of::<u32>();
         let len_bytes = [
             file[trailer_start],
@@ -56,6 +62,9 @@ impl<'a> Footer<'a> {
             file[trailer_start + 3],
         ];
         let footer_len = u32::from_le_bytes(len_bytes) as usize;
+        if footer_len > trailer_start - HEADER_LEN {
+            return Err(io::Error::other("invalid footer length"));
+        }
         let mut source = &file[trailer_start - footer_len..trailer_start];
 
         let column_count = read_varint(&mut source) as usize;
