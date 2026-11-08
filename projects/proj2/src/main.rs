@@ -1,9 +1,9 @@
 use std::{env, fs, io};
 
-use proj2::{Column, ColumnBuffer, DataType, Field, FileReader, FileWriter, Schema, StrBuffer};
+use proj2::{BATCH_SIZE, Column, ColumnBuffer, DataType, Field, FileReader, FileWriter, Schema, StrBuffer};
 
 const GROUP_COUNT: usize = 4;
-const ROWS_PER_GROUP: usize = 1000;
+const ROWS_PER_GROUP: usize = BATCH_SIZE;
 const NAMES: [&str; 6] = [
     "Nami ナミ",
     "Usopp ウソップ",
@@ -29,7 +29,6 @@ fn main() -> io::Result<()> {
 fn generate(path: &str) -> io::Result<()> {
     let schema = Schema::new(vec![
         Field::new("id", DataType::Int64),
-        Field::new("amount", DataType::Int64),
         Field::new("is_pirate", DataType::Boolean),
         Field::new("name", DataType::Varchar),
         Field::new("comment", DataType::Varchar),
@@ -38,14 +37,12 @@ fn generate(path: &str) -> io::Result<()> {
 
     let mut random = fastrand::Rng::with_seed(1);
     let mut ids: Vec<i64> = Vec::new();
-    let mut amounts: Vec<i64> = Vec::new();
     let mut pirates: Vec<bool> = Vec::new();
     let mut names = StrBuffer::default();
     let mut comments = StrBuffer::default();
 
     for group in 0..GROUP_COUNT {
         ids.clear();
-        amounts.clear();
         pirates.clear();
         names.data.clear();
         names.offsets.clear();
@@ -57,7 +54,6 @@ fn generate(path: &str) -> io::Result<()> {
         for row in 0..ROWS_PER_GROUP {
             let id = (group * ROWS_PER_GROUP + row) as i64 + 1;
             ids.push(id);
-            amounts.push(random.i64(-61830..=915629));
             pirates.push(random.u8(..4) == 0);
             names.data.push_str(NAMES[row % NAMES.len()]);
             names.offsets.push(names.data.len() as u32);
@@ -67,7 +63,6 @@ fn generate(path: &str) -> io::Result<()> {
 
         writer.write_in_chunks(&[
             Column::Int64(&ids),
-            Column::Int64(&amounts),
             Column::Boolean(&pirates),
             Column::Varchar(names.view()),
             Column::Varchar(comments.view()),
