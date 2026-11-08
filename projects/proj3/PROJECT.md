@@ -91,7 +91,7 @@ Operacja `SELECT` przyjmuje nazwę tabeli i ma za zadanie pobrać wszystkie jej 
 Jej celem jest obserwacja wstawionych danych poprzez interfejs użytkownika.
 **Kolejność wierszy w zwróconych danych nie jest ustalona.**
 
-W przypadku tego zapytania istnieje specjalny endpoint `/results/{queryId}`, który służy do pobierania wyniku po zakończeniu wykonania zapytania.
+W przypadku tego zapytania istnieje specjalny endpoint `/results{queryId}`, który służy do pobierania wyniku po zakończeniu wykonania zapytania.
 Istnieje możliwość ograniczenia zwróconych wierszy poprzez opcjonalny parametr w ciele zapytania.
 
 ## Architektura aplikacji
