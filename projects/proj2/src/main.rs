@@ -30,6 +30,7 @@ fn generate(path: &str) -> io::Result<()> {
     let schema = Schema::new(vec![
         Field::new("id", DataType::Int64),
         Field::new("amount", DataType::Int64),
+        Field::new("is_pirate", DataType::Boolean),
         Field::new("name", DataType::Varchar),
         Field::new("comment", DataType::Varchar),
     ]);
@@ -38,12 +39,14 @@ fn generate(path: &str) -> io::Result<()> {
     let mut random = fastrand::Rng::with_seed(1);
     let mut ids: Vec<i64> = Vec::new();
     let mut amounts: Vec<i64> = Vec::new();
+    let mut pirates: Vec<bool> = Vec::new();
     let mut names = StrBuffer::default();
     let mut comments = StrBuffer::default();
 
     for group in 0..GROUP_COUNT {
         ids.clear();
         amounts.clear();
+        pirates.clear();
         names.data.clear();
         names.offsets.clear();
         names.offsets.push(0);
@@ -55,6 +58,7 @@ fn generate(path: &str) -> io::Result<()> {
             let id = (group * ROWS_PER_GROUP + row) as i64 + 1;
             ids.push(id);
             amounts.push(random.i64(-61830..=915629));
+            pirates.push(random.u8(..4) == 0);
             names.data.push_str(NAMES[row % NAMES.len()]);
             names.offsets.push(names.data.len() as u32);
             comments.data.push_str(COMMENTS[row % COMMENTS.len()]);
@@ -64,6 +68,7 @@ fn generate(path: &str) -> io::Result<()> {
         writer.write_in_chunks(&[
             Column::Int64(&ids),
             Column::Int64(&amounts),
+            Column::Boolean(&pirates),
             Column::Varchar(names.view()),
             Column::Varchar(comments.view()),
         ])?;
@@ -83,6 +88,7 @@ fn print_metrics(path: &str) -> io::Result<()> {
         buffers.push(ColumnBuffer::new(field.data_type));
     }
     let mut sums: Vec<i128> = vec![0; fields.len()];
+    let mut true_counts: Vec<u64> = vec![0; fields.len()];
     let mut ascii_counts: Vec<u64> = vec![0; fields.len()];
     let mut row_count: u64 = 0;
 
@@ -94,6 +100,11 @@ fn print_metrics(path: &str) -> io::Result<()> {
                 ColumnBuffer::Int64(values) => {
                     for &value in values {
                         sums[column] += i128::from(value);
+                    }
+                }
+                ColumnBuffer::Boolean(values) => {
+                    for &value in values {
+                        true_counts[column] += u64::from(value);
                     }
                 }
                 ColumnBuffer::Varchar(strings) => {
@@ -119,6 +130,14 @@ fn print_metrics(path: &str) -> io::Result<()> {
                     println!("{} INT64: mean = {}", field.name, mean);
                 }
             }
+            DataType::Boolean => {
+                if row_count == 0 {
+                    println!("{} has no rows", field.name);
+                } else {
+                    let p = true_counts[column] as f64 / row_count as f64;
+                    println!("{} BOOLEAN: binary entropy = {}", field.name, binary_entropy(p));
+                }
+            }
             DataType::Varchar => {
                 println!(
                     "{} VARCHAR: ascii characters = {}",
@@ -128,4 +147,9 @@ fn print_metrics(path: &str) -> io::Result<()> {
         }
     }
     Ok(())
+}
+
+fn binary_entropy(p: f64) -> f64 {
+    let term = |x: f64| if x == 0.0 { 0.0 } else { -x * x.log2() };
+    term(p) + term(1.0 - p)
 }

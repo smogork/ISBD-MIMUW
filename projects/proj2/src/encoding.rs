@@ -11,6 +11,7 @@ pub fn encode<'c>(column: &Column<'c>, destination: &mut Vec<u8>) {
     match column {
         Column::Int64(values) => encode_int64(values, destination),
         Column::Varchar(values) => encode_varchar(values, destination),
+        Column::Boolean(values) => encode_boolean(values, destination),
     }
 }
 
@@ -50,10 +51,21 @@ pub fn encode_varchar(values: &StrColumn<'_>, destination: &mut Vec<u8>) {
     destination.truncate(start + written);
 }
 
+pub fn encode_boolean(values: &[bool], destination: &mut Vec<u8>) {
+    for byte_values in values.chunks(8) {
+        let mut byte = 0u8;
+        for (bit, &value) in byte_values.iter().enumerate() {
+            byte |= u8::from(value) << bit;
+        }
+        destination.push(byte);
+    }
+}
+
 pub fn decode(source: &[u8], rows: usize, destination: &mut ColumnBuffer) -> io::Result<()> {
     match destination {
         ColumnBuffer::Int64(values) => decode_int64(source, rows, values),
         ColumnBuffer::Varchar(values) => decode_varchar(source, rows, values)?,
+        ColumnBuffer::Boolean(values) => decode_boolean(source, rows, values),
     }
     Ok(())
 }
@@ -106,3 +118,10 @@ pub fn decode_varchar(mut source: &[u8], rows: usize, destination: &mut StrBuffe
     Ok(())
 }
 
+
+pub fn decode_boolean(source: &[u8], rows: usize, destination: &mut Vec<bool>) {
+    destination.clear();
+    for row in 0..rows {
+        destination.push((source[row / 8] >> (row % 8)) & 1 == 1);
+    }
+}

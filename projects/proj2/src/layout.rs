@@ -122,6 +122,7 @@ impl<'a> Field<'a> {
 pub enum DataType {
     Int64,
     Varchar,
+    Boolean,
 }
 
 impl DataType {
@@ -129,6 +130,7 @@ impl DataType {
         match self {
             DataType::Int64 => 0u8,
             DataType::Varchar => 1u8,
+            DataType::Boolean => 2u8,
         }
     }
 
@@ -136,16 +138,18 @@ impl DataType {
         match byte {
             0 => DataType::Int64,
             1 => DataType::Varchar,
+            2 => DataType::Boolean,
             other => panic!("unknown data type byte {other}"),
         }
     }
 }
 
-// Borrowed column: a slice of i64 and StrColumn
+// Borrowed column: a slice of i64, a slice of bool or StrColumn
 #[derive(Debug)]
 pub enum Column<'a> {
     Int64(&'a [i64]),
     Varchar(StrColumn<'a>),
+    Boolean(&'a [bool]),
 }
 
 impl<'a> Column<'a> {
@@ -153,6 +157,7 @@ impl<'a> Column<'a> {
         match self {
             Self::Int64(values) => values.len(),
             Self::Varchar(values) => values.len(),
+            Self::Boolean(values) => values.len(),
         }
     }
 }
@@ -190,6 +195,7 @@ impl StrBuffer {
 pub enum ColumnBuffer {
     Int64(Vec<i64>),
     Varchar(StrBuffer),
+    Boolean(Vec<bool>),
 }
 
 impl ColumnBuffer {
@@ -197,6 +203,7 @@ impl ColumnBuffer {
         match data_type {
             DataType::Int64 => Self::Int64(Vec::new()),
             DataType::Varchar => Self::Varchar(StrBuffer::default()),
+            DataType::Boolean => Self::Boolean(Vec::new()),
         }
     }
 
@@ -204,6 +211,7 @@ impl ColumnBuffer {
         match self {
             Self::Int64(_) => DataType::Int64,
             Self::Varchar(_) => DataType::Varchar,
+            Self::Boolean(_) => DataType::Boolean,
         }
     }
 
@@ -211,6 +219,7 @@ impl ColumnBuffer {
         match self {
             Self::Int64(values) => Column::Int64(values),
             Self::Varchar(values) => Column::Varchar(values.view()),
+            Self::Boolean(values) => Column::Boolean(values),
         }
     }
 }
