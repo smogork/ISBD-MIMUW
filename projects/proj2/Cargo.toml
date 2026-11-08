@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 fastrand = "2"
 lz4_flex = { version = "0.14", default-features = false, features = ["std", "safe-encode", "safe-decode", "checked-decode"] }
+memmap2 = "0.9"
 

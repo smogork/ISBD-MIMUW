@@ -74,7 +74,9 @@ fn generate(path: &str) -> io::Result<()> {
 }
 
 fn print_metrics(path: &str) -> io::Result<()> {
-    let bytes = fs::read(path)?;
+    let file = fs::File::open(path)?;
+    // SAFETY: we are the sole reader of the file.
+    let bytes = unsafe { memmap2::Mmap::map(&file)? };
     let reader = FileReader::new(&bytes)?;
     let fields = &reader.footer.schema.fields;
 
