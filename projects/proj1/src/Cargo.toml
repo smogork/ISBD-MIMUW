@@ -17,4 +17,5 @@ path = "pipeline.rs"
 
 [dependencies]
 md5 = "0.8.1"
+memmap = "0.7.0"
 rand = "0.10.3"
